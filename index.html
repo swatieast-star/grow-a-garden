@@ -1,1 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sprout Valley — Grow a Garden</title>
+<style>
+  :root {
+    --bg: #0f1e17;
+    --bg2: #16301f;
+    --panel: #1b3a28;
+    --panel2: #22482f;
+    --ink: #eafff0;
+    --muted: #a9c8b4;
+    --line: #2f5a3d;
+    --accent: #7ee787;
+    --coin: #ffd24a;
+    --common: #9fb0a6;
+    --uncommon: #6fdc8c;
+    --rare: #4aa8ff;
+    --epic: #b57bff;
+    --legendary: #ffbe3d;
+    --mythical: #ff77c8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1e4a2f 0%, transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, #123420 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    min-height: 100%;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 16px; }
+
+  header.topbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 16px; padding: 12px 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  .title { font-size: 22px; font-weight: 800; letter-spacing: .3px; }
+  .title small { display:block; font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing:1.5px; text-transform: uppercase; }
+  .spacer { flex: 1; }
+  .stat {
+    background: rgba(0,0,0,.25);
+    border: 1px solid var(--line);
+    border-radius: 12px; padding: 8px 12px; min-width: 92px;
+    display:flex; flex-direction: column; align-items:flex-start;
+  }
+  .stat .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .stat .v { font-size: 18px; font-weight: 800; }
+  .coin { color: var(--coin); }
+  .weather-pill {
+    display:flex; align-items:center; gap:8px;
+    background: rgba(0,0,0,.25); border:1px solid var(--line);
+    border-radius: 999px; padding: 8px 14px; font-weight: 700;
+  }
+  .weather-pill .emo { font-size: 20px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; margin-top: 16px; }
+  @media (max-width: 880px){ .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+    border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.25);
+  }
+  .card h2 { margin: 0 0 10px; font-size: 15px; letter-spacing:.4px; display:flex; align-items:center; gap:8px; }
+  .hint { color: var(--muted); font-size: 12px; }
+
+  /* Garden grid */
+  .garden {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  }
+  @media (max-width: 520px){ .garden { grid-template-columns: repeat(3, 1fr); } }
+  .plot {
+    position: relative; aspect-ratio: 1 / 1; border-radius: 14px; cursor: pointer;
+    background:
+      radial-gradient(circle at 50% 30%, #3a2a1c 0%, #2a1d12 70%);
+    border: 1px solid #4b3a26;
+    display:flex; align-items:center; justify-content:center;
+    overflow: hidden; user-select: none; transition: transform .08s ease, box-shadow .2s;
+  }
+  .plot:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,.35); }
+  .plot.empty { background: repeating-linear-gradient(45deg,#2a1d12 0 10px,#31241700 10px 20px), radial-gradient(circle at 50% 35%, #3a2a1c 0%, #241810 75%); }
+  .plot.locked { background: #14261a; border-style: dashed; cursor: default; color: var(--muted); }
+  .plot .emoji { font-size: 44px; line-height: 1; filter: drop-shadow(0 4px 6px rgba(0,0,0,.4)); transition: transform .2s; }
+  .plot.ready .emoji { animation: bob 1.4s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-6px);} }
+  .plot .plus { font-size: 30px; color: #6a5638; }
+  .progress { position:absolute; left:8px; right:8px; bottom:8px; height:7px; border-radius:999px; background: rgba(0,0,0,.45); overflow:hidden; }
+  .progress > i { display:block; height:100%; width:0%; background: linear-gradient(90deg,#5ad16a,#a8ff9e); transition: width .25s; }
+  .plot .ready-badge {
+    position:absolute; top:6px; left:6px; background: var(--accent); color:#08210f;
+    font-size:10px; font-weight:800; padding:2px 6px; border-radius:999px; letter-spacing:.5px;
+  }
+  .plot .mut {
+    position:absolute; top:6px; right:6px; font-size: 16px;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+  .plot .rar-dot { position:absolute; bottom:8px; left:8px; width:8px; height:8px; border-radius:50%; box-shadow:0 0 8px currentColor; z-index:2;}
+
+  /* Tabs */
+  .tabs { display:flex; gap:6px; margin-bottom: 12px; }
+  .tab {
+    flex:1; text-align:center; padding: 9px 8px; border-radius: 10px; cursor:pointer;
+    background: rgba(0,0,0,.25); border:1px solid var(--line); font-weight:700; font-size:13px; color: var(--muted);
+  }
+  .tab.active { background: var(--accent); color:#08210f; border-color: var(--accent); }
+
+  .list { display:flex; flex-direction: column; gap: 8px; max-height: 560px; overflow:auto; padding-right: 4px; }
+  .item {
+    display:flex; align-items:center; gap:10px; padding:10px; border-radius:12px;
+    background: rgba(0,0,0,.22); border:1px solid var(--line);
+  }
+  .item .ic { font-size: 26px; width: 34px; text-align:center; }
+  .item .meta { flex:1; min-width:0; }
+  .item .nm { font-weight:800; font-size:13px; display:flex; align-items:center; gap:6px; }
+  .item .sub { font-size:11px; color: var(--muted); }
+  .rar-tag { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; padding:1px 6px; border-radius:999px; border:1px solid currentColor; }
+  .btn {
+    border:none; border-radius:10px; padding:8px 12px; font-weight:800; font-size:12px; cursor:pointer;
+    background: var(--accent); color:#08210f; white-space:nowrap; transition: filter .1s, transform .05s;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(1px); }
+  .btn.sec { background:#2c4d38; color: var(--ink); border:1px solid var(--line); }
+  .btn.gold { background: var(--coin); color:#3a2c00; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; filter:none; }
+  .qty { font-size:11px; color: var(--muted); background: rgba(0,0,0,.3); border-radius:999px; padding:2px 8px; }
+
+  /* plant picker modal */
+  .overlay { position: fixed; inset:0; background: rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index: 50; padding:16px; }
+  .overlay.show { display:flex; }
+  .modal { width: min(460px, 96vw); max-height: 82vh; overflow:auto; }
+  .modal h3 { margin:0 0 4px; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .pick {
+    text-align:left; display:flex; gap:8px; align-items:center; padding:10px; border-radius:12px;
+    background: rgba(0,0,0,.25); border:1px solid var(--line); cursor:pointer; color: var(--ink);
+  }
+  .pick:hover { border-color: var(--accent); }
+  .pick .ic { font-size:24px; }
+  .pick.dis { opacity:.4; cursor:not-allowed; }
+  .close-x { float:right; cursor:pointer; color: var(--muted); font-weight:800; }
+
+  /* toast */
+  #toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display:flex; flex-direction:column; gap:8px; z-index: 80; align-items:center; }
+  .toast {
+    background: #10281a; border:1px solid var(--accent); color: var(--ink);
+    padding:10px 16px; border-radius: 12px; font-weight:700; font-size:13px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.4); animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: translateY(8px); opacity:0;} to{ transform: none; opacity:1;} }
+
+  .footer { text-align:center; color: var(--muted); font-size:11px; margin: 18px 0 6px; }
+  .footer a, .link { color: var(--accent); cursor:pointer; text-decoration: underline; }
+  .row { display:flex; gap:8px; align-items:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="title">🌻 Sprout Valley <small>Grow a Garden</small></div>
+    <div class="spacer"></div>
+    <div class="weather-pill" id="weather"><span class="emo">☀️</span><span id="weatherName">Sunny</span></div>
+    <div class="stat"><span class="k">Coins</span><span class="v coin" id="coins">0</span></div>
+    <div class="stat"><span class="k">Harvests</span><span class="v" id="harvests">0</span></div>
+    <div class="stat"><span class="k">Luck</span><span class="v" id="luck">1.0×</span></div>
+    <div class="stat" id="userChip" style="display:none;">
+      <span class="k">Player</span>
+      <span class="v" id="userName" style="font-size:14px;">—</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="card">
+      <h2>🌱 Your Garden <span class="hint" id="gardenHint">— tap a plot to plant, tap a ripe crop to harvest</span></h2>
+      <div class="garden" id="garden"></div>
+      <div class="row" style="margin-top:12px; justify-content:space-between;">
+        <span class="hint" id="plotInfo"></span>
+        <button class="btn sec" id="harvestAll">🧺 Harvest All Ready</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" data-tab="shop">🛒 Seed Shop</div>
+        <div class="tab" data-tab="bag">🎒 Inventory</div>
+        <div class="tab" data-tab="upg">⚙️ Upgrades</div>
+      </div>
+      <div id="panel"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Auto-saves to your browser. <span class="link" id="signOutBtn">Sign out</span> · <span class="link" id="resetBtn">Reset game</span> ·
+    <span class="hint">v1.0 — served with Docker + nginx</span>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card modal">
+    <span class="close-x" id="closeModal">✕</span>
+    <h3>Plant a seed</h3>
+    <p class="hint" style="margin-top:2px">Choose a seed from your inventory to plant in this plot.</p>
+    <div class="grid2" id="pickList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="signinOverlay">
+  <div class="card modal" style="max-width:380px; text-align:center;">
+    <div style="font-size:40px">🌻</div>
+    <h3 style="margin:6px 0 2px;">Sprout Valley</h3>
+    <p class="hint" style="margin-top:0">Sign in to save your garden</p>
+    <input id="signinName" type="text" placeholder="Enter your name" maxlength="20"
+      style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:rgba(0,0,0,.3); color:var(--ink); font-size:14px; margin:8px 0; text-align:center;" />
+    <button class="btn" id="signinBtn" style="width:100%; padding:10px;">Start Planting 🌱</button>
+    <div style="margin-top:10px"><span class="link" id="guestBtn">Continue as guest</span></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+
+// ---------- Data ----------
+const RARITY = {
+  common:    { name:"Common",    color:"var(--common)" },
+  uncommon:  { name:"Uncommon",  color:"var(--uncommon)" },
+  rare:      { name:"Rare",      color:"var(--rare)" },
+  epic:      { name:"Epic",      color:"var(--epic)" },
+  legendary: { name:"Legendary", color:"var(--legendary)" },
+  mythical:  { name:"Mythical",  color:"var(--mythical)" },
+};
+
+// grow times are in seconds; value = base coins on harvest
+const SEEDS = [
+  { id:"carrot",     name:"Carrot",      emoji:"🥕", rarity:"common",    cost:10,   grow:8,   value:18 },
+  { id:"strawberry", name:"Strawberry",  emoji:"🍓", rarity:"common",    cost:16,   grow:12,  value:30 },
+  { id:"blueberry",  name:"Blueberry",   emoji:"🫐", rarity:"uncommon",  cost:42,   grow:20,  value:85 },
+  { id:"tomato",     name:"Tomato",      emoji:"🍅", rarity:"uncommon",  cost:60,   grow:26,  value:120 },
+  { id:"watermelon", name:"Watermelon",  emoji:"🍉", rarity:"rare",      cost:130,  grow:45,  value:300 },
+  { id:"pumpkin",    name:"Pumpkin",     emoji:"🎃", rarity:"rare",      cost:170,  grow:55,  value:400 },
+  { id:"pineapple",  name:"Pineapple",   emoji:"🍍", rarity:"epic",      cost:420,  grow:90,  value:1050 },
+  { id:"grapes",     name:"Grapes",      emoji:"🍇", rarity:"epic",      cost:560,  grow:110, value:1500 },
+  { id:"dragon",     name:"Dragon Fruit",emoji:"🐉", rarity:"legendary", cost:1600, grow:180, value:4400 },
+  { id:"goldapple",  name:"Gold Apple",  emoji:"🍎", rarity:"legendary", cost:2300, grow:220, value:6800 },
+  { id:"starfruit",  name:"Star Fruit",  emoji:"⭐", rarity:"mythical",  cost:6200, grow:300, value:21000 },
+  { id:"moonflower", name:"Moon Flower", emoji:"🌙", rarity:"mythical",  cost:9500, grow:360, value:34000 },
+];
+const SEED_BY_ID = Object.fromEntries(SEEDS.map(s=>[s.id,s]));
+
+// mutations: multiplier on harvest value. Rolled best-first.
+const MUTATIONS = [
+  { id:"rainbow", name:"Rainbow", emoji:"🌈", mult:25, base:0.004 },
+  { id:"gold",    name:"Gold",    emoji:"✨", mult:6,  base:0.02 },
+  { id:"frozen",  name:"Frozen",  emoji:"❄️", mult:2.5, base:0.02 },
+  { id:"wet",     name:"Wet",     emoji:"💧", mult:1.6, base:0.05 },
+];
+
+const WEATHER = {
+  sunny:  { name:"Sunny",  emoji:"☀️", growMult:1.0,  note:"" },
+  rainy:  { name:"Rainy",  emoji:"🌧️", growMult:0.8,  boost:"wet",    note:"crops grow faster · more 💧 Wet" },
+  frost:  { name:"Frost",  emoji:"❄️", growMult:1.1,  boost:"frozen", note:"more ❄️ Frozen crops" },
+  golden: { name:"Golden Hour", emoji:"🌅", growMult:0.9, boost:"gold", note:"more ✨ Gold crops" },
+};
+const WEATHER_KEYS = Object.keys(WEATHER);
+
+// ---------- State ----------
+const START = () => ({
+  coins: 100,
+  harvests: 0,
+  plots: 4,                 // unlocked plots (max grid = 12)
+  fert: 0,                  // growth speed upgrade level
+  clover: 0,                // luck upgrade level
+  bag: { carrot: 3 },       // inventory: seedId -> count
+  garden: Array(12).fill(null), // each: {seedId, planted(ms), mutation} or null
+  weather: "sunny",
+  weatherUntil: 0,
+  lastSave: 0,
+});
+
+let CURRENT_USER = localStorage.getItem("sproutValley_user");
+let S = null;
+const MAX_PLOTS = 12;
+function saveKey(){ return "sproutValley_v1_" + (CURRENT_USER || "guest"); }
+
+// ---------- Persistence ----------
+function save(){
+  if(!S) return;
+  S.lastSave = Date.now();
+  try { localStorage.setItem(saveKey(), JSON.stringify(S)); } catch(e){}
+}
+function load(){
+  try {
+    const raw = localStorage.getItem(saveKey());
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    // migrate / guard
+    if(!Array.isArray(data.garden)) data.garden = Array(12).fill(null);
+    if(data.garden.length < 12) data.garden = data.garden.concat(Array(12-data.garden.length).fill(null));
+    if(!data.bag) data.bag = {};
+    return data;
+  } catch(e){ return null; }
+}
+
+// ---------- Helpers ----------
+function fmt(n){
+  n = Math.floor(n);
+  if(n >= 1e9) return (n/1e9).toFixed(2)+"B";
+  if(n >= 1e6) return (n/1e6).toFixed(2)+"M";
+  if(n >= 1e3) return (n/1e3).toFixed(2)+"K";
+  return n.toString();
+}
+function luckMult(){ return 1 + S.clover * 0.35; }
+function growMult(){ return WEATHER[S.weather].growMult * (1 - Math.min(0.6, S.fert*0.08)); }
+function effGrow(seed){ return Math.max(2, seed.grow * growMult()); }
+function toast(msg){
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = msg;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transition="opacity .4s"; }, 1600);
+  setTimeout(()=> el.remove(), 2100);
+}
+
+// ---------- Weather ----------
+function rollWeather(){
+  const now = Date.now();
+  if(now < S.weatherUntil) return;
+  // weighted pick
+  const roll = Math.random();
+  let w = "sunny";
+  if(roll > 0.85) w = "frost";
+  else if(roll > 0.62) w = "golden";
+  else if(roll > 0.38) w = "rainy";
+  else w = "sunny";
+  S.weather = w;
+  S.weatherUntil = now + (45 + Math.random()*45) * 1000; // 45-90s
+}
+
+// ---------- Mutations ----------
+function rollMutation(){
+  const boost = WEATHER[S.weather].boost;
+  const luck = luckMult();
+  for(const m of MUTATIONS){          // best first
+    let chance = m.base * luck;
+    if(boost === m.id) chance *= 4;
+    if(Math.random() < chance) return m.id;
+  }
+  return null;
+}
+
+// ---------- Core actions ----------
+function buySeed(id){
+  const s = SEED_BY_ID[id];
+  if(S.coins < s.cost){ toast("Not enough coins"); return; }
+  S.coins -= s.cost;
+  S.bag[id] = (S.bag[id]||0) + 1;
+  render(); save();
+}
+function plant(plotIndex, seedId){
+  if((S.bag[seedId]||0) <= 0){ toast("You don't own that seed"); return; }
+  if(S.garden[plotIndex]){ toast("Plot already used"); return; }
+  S.bag[seedId]--;
+  S.garden[plotIndex] = { seedId, planted: Date.now(), mutation: rollMutation() };
+  closeModal(); render(); save();
+}
+function isReady(cell){
+  if(!cell) return false;
+  const s = SEED_BY_ID[cell.seedId];
+  return (Date.now() - cell.planted) / 1000 >= effGrowAt(cell);
+}
+// growth uses the grow-rate captured across its life; we approximate with current mult
+function effGrowAt(cell){
+  const s = SEED_BY_ID[cell.seedId];
+  // store a fixed grow duration at plant time to keep it fair with weather swings
+  if(!cell.dur) cell.dur = effGrow(s);
+  return cell.dur;
+}
+function harvest(plotIndex){
+  const cell = S.garden[plotIndex];
+  if(!cell || !isReady(cell)) return;
+  const s = SEED_BY_ID[cell.seedId];
+  let value = s.value;
+  let mutName = "";
+  if(cell.mutation){
+    const m = MUTATIONS.find(x=>x.id===cell.mutation);
+    value = Math.round(value * m.mult);
+    mutName = " " + m.emoji + " " + m.name;
+  }
+  S.coins += value;
+  S.harvests++;
+  S.garden[plotIndex] = null;
+  toast("Harvested " + s.emoji + " " + s.name + mutName + " · +" + fmt(value) + " 🪙");
+  render(); save();
+}
+function harvestAll(){
+  let total = 0, count = 0;
+  for(let i=0;i<S.plots;i++){
+    const cell = S.garden[i];
+    if(cell && isReady(cell)){
+      const s = SEED_BY_ID[cell.seedId];
+      let value = s.value;
+      if(cell.mutation){ value = Math.round(value * MUTATIONS.find(x=>x.id===cell.mutation).mult); }
+      total += value; count++;
+      S.coins += value; S.harvests++;
+      S.garden[i] = null;
+    }
+  }
+  if(count) toast("Harvested "+count+" crops · +"+fmt(total)+" 🪙");
+  else toast("Nothing ready yet");
+  render(); save();
+}
+
+// ---------- Upgrades ----------
+function plotCost(){ return Math.round(150 * Math.pow(2.1, S.plots - 4)); }
+function fertCost(){ return Math.round(120 * Math.pow(1.8, S.fert)); }
+function cloverCost(){ return Math.round(200 * Math.pow(2.0, S.clover)); }
+
+function buyPlot(){
+  if(S.plots >= MAX_PLOTS){ toast("All plots unlocked!"); return; }
+  const c = plotCost();
+  if(S.coins < c){ toast("Not enough coins"); return; }
+  S.coins -= c; S.plots++; render(); save();
+}
+function buyFert(){
+  const c = fertCost();
+  if(S.coins < c){ toast("Not enough coins"); return; }
+  S.coins -= c; S.fert++; render(); save();
+}
+function buyClover(){
+  const c = cloverCost();
+  if(S.coins < c){ toast("Not enough coins"); return; }
+  S.coins -= c; S.clover++; render(); save();
+}
+
+// ---------- Rendering ----------
+let activeTab = "shop";
+let pickPlot = null;
+
+function render(){
+  // stats
+  document.getElementById("coins").textContent = fmt(S.coins);
+  document.getElementById("harvests").textContent = fmt(S.harvests);
+  document.getElementById("luck").textContent = luckMult().toFixed(2)+"×";
+  const w = WEATHER[S.weather];
+  document.getElementById("weather").querySelector(".emo").textContent = w.emoji;
+  document.getElementById("weatherName").textContent = w.name + (w.note? " · "+w.note : "");
+
+  renderGarden();
+  renderPanel();
+}
+
+function renderGarden(){
+  const g = document.getElementById("garden");
+  g.innerHTML = "";
+  let readyCount = 0, growingCount = 0;
+  for(let i=0;i<MAX_PLOTS;i++){
+    const cell = S.garden[i];
+    const el = document.createElement("div");
+    el.className = "plot";
+    if(i >= S.plots){
+      el.className += " locked";
+      el.innerHTML = '<div style="text-align:center"><div style="font-size:22px">🔒</div><div style="font-size:10px">Plot '+(i+1)+'</div></div>';
+      g.appendChild(el);
+      continue;
+    }
+    if(!cell){
+      el.className += " empty";
+      el.innerHTML = '<div class="plus">＋</div>';
+      el.onclick = ()=> openPicker(i);
+    } else {
+      const s = SEED_BY_ID[cell.seedId];
+      const ready = isReady(cell);
+      const dur = effGrowAt(cell);
+      const pct = Math.min(100, ((Date.now()-cell.planted)/1000 / dur) * 100);
+      const stage = pct < 33 ? "🌱" : pct < 70 ? "🌿" : (ready ? s.emoji : "🌾");
+      el.innerHTML =
+        '<span class="rar-dot" style="color:'+RARITY[s.rarity].color+';background:'+RARITY[s.rarity].color+'"></span>' +
+        (cell.mutation ? '<span class="mut" style="color:'+mutColor(cell.mutation)+'">'+MUTATIONS.find(m=>m.id===cell.mutation).emoji+'</span>' : '') +
+        (ready ? '<span class="ready-badge">READY</span>' : '') +
+        '<span class="emoji">'+stage+'</span>' +
+        (ready ? '' : '<div class="progress"><i style="width:'+pct.toFixed(1)+'%"></i></div>');
+      if(ready){ el.className += " ready"; el.onclick = ()=> harvest(i); readyCount++; }
+      else { growingCount++; el.onclick = ()=> toast(s.name+" · "+Math.ceil(dur-(Date.now()-cell.planted)/1000)+"s left"); }
+    }
+    g.appendChild(el);
+  }
+  document.getElementById("plotInfo").textContent =
+    readyCount+" ready · "+growingCount+" growing · "+(S.plots)+"/"+MAX_PLOTS+" plots";
+}
+
+function mutColor(id){
+  return { rainbow:"#ff77c8", gold:"#ffd24a", frozen:"#8fdcff", wet:"#6fb7ff" }[id] || "#fff";
+}
+
+function rarTag(rarity){
+  return '<span class="rar-tag" style="color:'+RARITY[rarity].color+'">'+RARITY[rarity].name+'</span>';
+}
+
+function renderPanel(){
+  const p = document.getElementById("panel");
+  if(activeTab === "shop"){
+    p.innerHTML = '<div class="list">' + SEEDS.map(s=>{
+      const can = S.coins >= s.cost;
+      return '<div class="item">'+
+        '<div class="ic">'+s.emoji+'</div>'+
+        '<div class="meta"><div class="nm">'+s.name+' '+rarTag(s.rarity)+'</div>'+
+        '<div class="sub">grows '+s.grow+'s · sells '+fmt(s.value)+' 🪙</div></div>'+
+        '<button class="btn'+(can?'':'')+'" '+(can?'':'disabled')+' data-buy="'+s.id+'">'+fmt(s.cost)+' 🪙</button>'+
+      '</div>';
+    }).join("") + '</div>';
+    p.querySelectorAll("[data-buy]").forEach(b=> b.onclick = ()=> buySeed(b.dataset.buy));
+  }
+  else if(activeTab === "bag"){
+    const owned = SEEDS.filter(s=> (S.bag[s.id]||0) > 0);
+    if(owned.length === 0){
+      p.innerHTML = '<p class="hint">Your inventory is empty. Buy seeds from the shop, then tap a garden plot to plant them.</p>';
+    } else {
+      p.innerHTML = '<div class="list">' + owned.map(s=>{
+        return '<div class="item">'+
+          '<div class="ic">'+s.emoji+'</div>'+
+          '<div class="meta"><div class="nm">'+s.name+' '+rarTag(s.rarity)+'</div>'+
+          '<div class="sub">grows '+s.grow+'s · sells '+fmt(s.value)+' 🪙</div></div>'+
+          '<span class="qty">×'+S.bag[s.id]+'</span>'+
+        '</div>';
+      }).join("") + '</div><p class="hint" style="margin-top:10px">Tap an empty plot in your garden to plant these.</p>';
+    }
+  }
+  else if(activeTab === "upg"){
+    const plotMax = S.plots >= MAX_PLOTS;
+    p.innerHTML = '<div class="list">'+
+      upgRow("🌾","Unlock Plot", "Add a garden plot ("+S.plots+"/"+MAX_PLOTS+")", plotMax? "MAXED" : fmt(plotCost())+" 🪙", plotMax, "plot")+
+      upgRow("🧪","Fertilizer Lv "+S.fert, "Crops grow "+Math.round(Math.min(60,S.fert*8))+"% faster → next +8%", fmt(fertCost())+" 🪙", false, "fert")+
+      upgRow("🍀","Lucky Clover Lv "+S.clover, "Luck "+luckMult().toFixed(2)+"× → more mutations", fmt(cloverCost())+" 🪙", false, "clover")+
+    '</div>'+
+    '<p class="hint" style="margin-top:10px">Mutations multiply harvest value: 💧 Wet ×1.6 · ❄️ Frozen ×2.5 · ✨ Gold ×6 · 🌈 Rainbow ×25.</p>';
+    p.querySelector('[data-upg="plot"]').onclick = buyPlot;
+    p.querySelector('[data-upg="fert"]').onclick = buyFert;
+    p.querySelector('[data-upg="clover"]').onclick = buyClover;
+  }
+}
+function upgRow(ic,name,sub,btn,dis,key){
+  return '<div class="item">'+
+    '<div class="ic">'+ic+'</div>'+
+    '<div class="meta"><div class="nm">'+name+'</div><div class="sub">'+sub+'</div></div>'+
+    '<button class="btn gold" '+(dis?'disabled':'')+' data-upg="'+key+'">'+btn+'</button>'+
+  '</div>';
+}
+
+// ---------- Plant picker ----------
+function openPicker(plotIndex){
+  pickPlot = plotIndex;
+  const owned = SEEDS.filter(s=> (S.bag[s.id]||0) > 0);
+  const list = document.getElementById("pickList");
+  if(owned.length === 0){
+    list.innerHTML = '<p class="hint" style="grid-column:1/-1">No seeds yet — buy some from the 🛒 Seed Shop first.</p>';
+  } else {
+    list.innerHTML = owned.map(s=>
+      '<button class="pick" data-plant="'+s.id+'">'+
+        '<span class="ic">'+s.emoji+'</span>'+
+        '<span><span class="nm" style="font-weight:800;font-size:13px">'+s.name+'</span>'+
+        '<br><span class="sub" style="font-size:11px;color:var(--muted)">×'+S.bag[s.id]+' · '+s.grow+'s</span></span>'+
+      '</button>'
+    ).join("");
+    list.querySelectorAll("[data-plant]").forEach(b=> b.onclick = ()=> plant(pickPlot, b.dataset.plant));
+  }
+  document.getElementById("overlay").classList.add("show");
+}
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); pickPlot = null; }
+
+// ---------- Wiring ----------
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    activeTab = t.dataset.tab;
+    renderPanel();
+  };
+});
+document.getElementById("harvestAll").onclick = harvestAll;
+document.getElementById("closeModal").onclick = closeModal;
+document.getElementById("overlay").onclick = (e)=>{ if(e.target.id === "overlay") closeModal(); };
+document.getElementById("resetBtn").onclick = ()=>{
+  if(confirm("Reset your garden and start over? This cannot be undone.")){
+    S = START(); save(); render(); toast("New garden planted 🌱");
+  }
+};
+
+// ---------- Loop ----------
+function tick(){
+  if(!S) return;
+  rollWeather();
+  renderGarden();
+  // light stat refresh (weather text)
+  const w = WEATHER[S.weather];
+  document.getElementById("weather").querySelector(".emo").textContent = w.emoji;
+  document.getElementById("weatherName").textContent = w.name + (w.note? " · "+w.note : "");
+}
+setInterval(tick, 500);
+setInterval(save, 5000);
+window.addEventListener("beforeunload", save);
+
+// ---------- Sign in ----------
+function signIn(name){
+  name = (name || "").trim().slice(0, 20) || "Guest";
+  const fresh = !localStorage.getItem("sproutValley_v1_" + name);
+  CURRENT_USER = name;
+  localStorage.setItem("sproutValley_user", name);
+  S = load() || START();
+  document.getElementById("signinOverlay").classList.remove("show");
+  const chip = document.getElementById("userChip");
+  chip.style.display = "flex";
+  document.getElementById("userName").textContent = name;
+  rollWeather(); render(); save();
+  toast((fresh ? "Welcome" : "Welcome back") + ", " + name + "! 🌻");
+}
+function signOut(){
+  save();
+  CURRENT_USER = null;
+  S = null;
+  localStorage.removeItem("sproutValley_user");
+  document.getElementById("userChip").style.display = "none";
+  document.getElementById("signinName").value = "";
+  document.getElementById("signinOverlay").classList.add("show");
+}
+document.getElementById("signinBtn").onclick = ()=> signIn(document.getElementById("signinName").value);
+document.getElementById("guestBtn").onclick = ()=> signIn("Guest");
+document.getElementById("signOutBtn").onclick = signOut;
+document.getElementById("signinName").addEventListener("keydown", e=>{ if(e.key === "Enter") signIn(e.target.value); });
+
+// start: resume last player or show sign-in
+if(CURRENT_USER){ signIn(CURRENT_USER); }
+else { document.getElementById("signinOverlay").classList.add("show"); document.getElementById("signinName").focus(); }
+</script>
+</body>
+</html>
 
