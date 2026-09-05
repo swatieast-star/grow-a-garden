@@ -3,6 +3,516 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sprout Valley 3D — Grow a Garden</title>
+<style>
+  :root{
+    --panel:#1b3a28; --panel2:#22482f; --ink:#eafff0; --muted:#a9c8b4; --line:#2f5a3d;
+    --accent:#7ee787; --coin:#ffd24a;
+    --common:#9fb0a6; --uncommon:#6fdc8c; --rare:#4aa8ff; --epic:#b57bff; --legendary:#ffbe3d; --mythical:#ff77c8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;color:var(--ink);}
+  #scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0;}
+  .ui{position:fixed;z-index:5;}
+  header.topbar{
+    top:12px;left:12px;right:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:linear-gradient(180deg,rgba(27,58,40,.92),rgba(34,72,47,.92));
+    border:1px solid var(--line);border-radius:14px;padding:10px 14px;backdrop-filter:blur(4px);
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  .title{font-size:20px;font-weight:800;}
+  .title small{display:block;font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;}
+  .spacer{flex:1;}
+  .stat{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:10px;padding:6px 10px;min-width:78px;display:flex;flex-direction:column;}
+  .stat .k{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+  .stat .v{font-size:16px;font-weight:800;}
+  .coin{color:var(--coin);}
+  .weather-pill{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px;}
+  .weather-pill .emo{font-size:18px;}
+
+  .panel-card{
+    top:88px;right:12px;width:330px;max-width:calc(100vw - 24px);
+    background:linear-gradient(180deg,rgba(27,58,40,.94),rgba(34,72,47,.94));
+    border:1px solid var(--line);border-radius:14px;padding:12px;backdrop-filter:blur(4px);
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  @media(max-width:720px){ .panel-card{ left:12px;right:12px;width:auto; } }
+  .tabs{display:flex;gap:6px;margin-bottom:10px;}
+  .tab{flex:1;text-align:center;padding:8px 6px;border-radius:9px;cursor:pointer;background:rgba(0,0,0,.25);border:1px solid var(--line);font-weight:700;font-size:12px;color:var(--muted);}
+  .tab.active{background:var(--accent);color:#08210f;border-color:var(--accent);}
+  .list{display:flex;flex-direction:column;gap:7px;max-height:46vh;overflow:auto;padding-right:4px;}
+  .item{display:flex;align-items:center;gap:9px;padding:8px;border-radius:10px;background:rgba(0,0,0,.24);border:1px solid var(--line);}
+  .item .ic{font-size:24px;width:30px;text-align:center;}
+  .item .meta{flex:1;min-width:0;}
+  .item .nm{font-weight:800;font-size:12px;display:flex;align-items:center;gap:6px;}
+  .item .sub{font-size:10px;color:var(--muted);}
+  .rar-tag{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:1px 5px;border-radius:999px;border:1px solid currentColor;}
+  .btn{border:none;border-radius:9px;padding:7px 11px;font-weight:800;font-size:12px;cursor:pointer;background:var(--accent);color:#08210f;white-space:nowrap;}
+  .btn:hover{filter:brightness(1.06);}
+  .btn:active{transform:translateY(1px);}
+  .btn.sec{background:#2c4d38;color:var(--ink);border:1px solid var(--line);}
+  .btn.gold{background:var(--coin);color:#3a2c00;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .qty{font-size:11px;color:var(--muted);background:rgba(0,0,0,.3);border-radius:999px;padding:2px 8px;}
+  .hint{color:var(--muted);font-size:11px;}
+
+  .hud-hint{bottom:12px;left:12px;background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);}
+  .row{display:flex;gap:8px;align-items:center;}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .overlay.show{display:flex;}
+  .modal{width:min(460px,96vw);max-height:82vh;overflow:auto;background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:16px;}
+  .modal h3{margin:0 0 4px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .pick{text-align:left;display:flex;gap:8px;align-items:center;padding:10px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--line);cursor:pointer;color:var(--ink);}
+  .pick:hover{border-color:var(--accent);}
+  .pick .ic{font-size:24px;}
+  .close-x{float:right;cursor:pointer;color:var(--muted);font-weight:800;}
+  input.name{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--ink);font-size:14px;margin:8px 0;text-align:center;}
+  .link{color:var(--accent);cursor:pointer;text-decoration:underline;}
+
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:80;align-items:center;}
+  .toast{background:#10281a;border:1px solid var(--accent);color:var(--ink);padding:10px 16px;border-radius:12px;font-weight:700;font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,.4);}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<header class="topbar ui">
+  <div class="title">🌻 Sprout Valley <small>Grow a Garden · 3D</small></div>
+  <div class="spacer"></div>
+  <div class="weather-pill" id="weather"><span class="emo">☀️</span><span id="weatherName">Sunny</span></div>
+  <div class="stat"><span class="k">Coins</span><span class="v coin" id="coins">0</span></div>
+  <div class="stat"><span class="k">Harvests</span><span class="v" id="harvests">0</span></div>
+  <div class="stat"><span class="k">Luck</span><span class="v" id="luck">1.0×</span></div>
+  <div class="stat" id="userChip" style="display:none;"><span class="k">Player</span><span class="v" id="userName" style="font-size:13px;">—</span></div>
+</header>
+
+<div class="panel-card ui">
+  <div class="tabs">
+    <div class="tab active" data-tab="shop">🛒 Shop</div>
+    <div class="tab" data-tab="bag">🎒 Bag</div>
+    <div class="tab" data-tab="upg">⚙️ Upgrades</div>
+  </div>
+  <div id="panel"></div>
+  <div class="row" style="margin-top:10px;justify-content:space-between;">
+    <span class="hint" id="plotInfo"></span>
+    <button class="btn sec" id="harvestAll">🧺 Harvest All</button>
+  </div>
+</div>
+
+<div class="hud-hint ui">🖱️ Drag to orbit · scroll to zoom · click a plot to plant / a ripe crop to harvest · <span class="link" id="signOutBtn">Sign out</span> · <span class="link" id="resetBtn">Reset</span></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <span class="close-x" id="closeModal">✕</span>
+    <h3>Plant a seed</h3>
+    <p class="hint" style="margin-top:2px">Choose a seed from your bag to plant here.</p>
+    <div class="grid2" id="pickList" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="overlay" id="signinOverlay">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <div style="font-size:40px">🌻</div>
+    <h3 style="margin:6px 0 2px;">Sprout Valley 3D</h3>
+    <p class="hint" style="margin-top:0">Sign in to save your garden</p>
+    <input id="signinName" class="name" type="text" placeholder="Enter your name" maxlength="20" />
+    <button class="btn" id="signinBtn" style="width:100%;padding:10px;">Start Planting 🌱</button>
+    <div style="margin-top:10px"><span class="link" id="guestBtn">Continue as guest</span></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+
+// ---------- Data ----------
+const RARITY={
+  common:{name:"Common",color:"#9fb0a6",hex:0x9fb0a6},
+  uncommon:{name:"Uncommon",color:"#6fdc8c",hex:0x6fdc8c},
+  rare:{name:"Rare",color:"#4aa8ff",hex:0x4aa8ff},
+  epic:{name:"Epic",color:"#b57bff",hex:0xb57bff},
+  legendary:{name:"Legendary",color:"#ffbe3d",hex:0xffbe3d},
+  mythical:{name:"Mythical",color:"#ff77c8",hex:0xff77c8},
+};
+const SEEDS=[
+  {id:"carrot",name:"Carrot",emoji:"🥕",rarity:"common",cost:10,grow:8,value:18},
+  {id:"strawberry",name:"Strawberry",emoji:"🍓",rarity:"common",cost:16,grow:12,value:30},
+  {id:"blueberry",name:"Blueberry",emoji:"🫐",rarity:"uncommon",cost:42,grow:20,value:85},
+  {id:"tomato",name:"Tomato",emoji:"🍅",rarity:"uncommon",cost:60,grow:26,value:120},
+  {id:"watermelon",name:"Watermelon",emoji:"🍉",rarity:"rare",cost:130,grow:45,value:300},
+  {id:"pumpkin",name:"Pumpkin",emoji:"🎃",rarity:"rare",cost:170,grow:55,value:400},
+  {id:"pineapple",name:"Pineapple",emoji:"🍍",rarity:"epic",cost:420,grow:90,value:1050},
+  {id:"grapes",name:"Grapes",emoji:"🍇",rarity:"epic",cost:560,grow:110,value:1500},
+  {id:"dragon",name:"Dragon Fruit",emoji:"🐉",rarity:"legendary",cost:1600,grow:180,value:4400},
+  {id:"goldapple",name:"Gold Apple",emoji:"🍎",rarity:"legendary",cost:2300,grow:220,value:6800},
+  {id:"starfruit",name:"Star Fruit",emoji:"⭐",rarity:"mythical",cost:6200,grow:300,value:21000},
+  {id:"moonflower",name:"Moon Flower",emoji:"🌙",rarity:"mythical",cost:9500,grow:360,value:34000},
+];
+const SEED_BY_ID=Object.fromEntries(SEEDS.map(s=>[s.id,s]));
+const MUTATIONS=[
+  {id:"rainbow",name:"Rainbow",emoji:"🌈",mult:25,base:0.004,glow:0xff77c8},
+  {id:"gold",name:"Gold",emoji:"✨",mult:6,base:0.02,glow:0xffd24a},
+  {id:"frozen",name:"Frozen",emoji:"❄️",mult:2.5,base:0.02,glow:0x8fdcff},
+  {id:"wet",name:"Wet",emoji:"💧",mult:1.6,base:0.05,glow:0x6fb7ff},
+];
+const WEATHER={
+  sunny:{name:"Sunny",emoji:"☀️",growMult:1.0,note:"",sky:0x8fd0ff,light:0xfff2cc,li:1.05},
+  rainy:{name:"Rainy",emoji:"🌧️",growMult:0.8,boost:"wet",note:"faster · more 💧",sky:0x6b7f92,light:0xbcd0e0,li:0.7},
+  frost:{name:"Frost",emoji:"❄️",growMult:1.1,boost:"frozen",note:"more ❄️",sky:0xcfe6f2,light:0xe8f4ff,li:0.95},
+  golden:{name:"Golden Hour",emoji:"🌅",growMult:0.9,boost:"gold",note:"more ✨",sky:0xffb066,light:0xffd9a0,li:1.1},
+};
+
+// ---------- State ----------
+const START=()=>({coins:100,harvests:0,plots:4,fert:0,clover:0,bag:{carrot:3},
+  garden:Array(12).fill(null),weather:"sunny",weatherUntil:0,lastSave:0});
+let CURRENT_USER=localStorage.getItem("sproutValley_user");
+let S=null;
+const MAX_PLOTS=12;
+function saveKey(){ return "sproutValley3d_"+(CURRENT_USER||"guest"); }
+
+function save(){ if(!S)return; S.lastSave=Date.now(); try{ localStorage.setItem(saveKey(),JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{
+    const raw=localStorage.getItem(saveKey()); if(!raw)return null;
+    const d=JSON.parse(raw);
+    if(!Array.isArray(d.garden)) d.garden=Array(12).fill(null);
+    if(d.garden.length<12) d.garden=d.garden.concat(Array(12-d.garden.length).fill(null));
+    if(!d.bag) d.bag={};
+    return d;
+  }catch(e){ return null; }
+}
+
+// ---------- Helpers ----------
+function fmt(n){ n=Math.floor(n);
+  if(n>=1e9)return (n/1e9).toFixed(2)+"B";
+  if(n>=1e6)return (n/1e6).toFixed(2)+"M";
+  if(n>=1e3)return (n/1e3).toFixed(2)+"K";
+  return n.toString(); }
+function luckMult(){ return 1+S.clover*0.35; }
+function growMult(){ return WEATHER[S.weather].growMult*(1-Math.min(0.6,S.fert*0.08)); }
+function effGrow(seed){ return Math.max(2,seed.grow*growMult()); }
+function toast(msg){
+  const el=document.createElement("div"); el.className="toast"; el.textContent=msg;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transition="opacity .4s"; },1600);
+  setTimeout(()=> el.remove(),2100);
+}
+function rollWeather(){
+  const now=Date.now(); if(now<S.weatherUntil)return;
+  const r=Math.random(); let w="sunny";
+  if(r>0.85)w="frost"; else if(r>0.62)w="golden"; else if(r>0.38)w="rainy"; else w="sunny";
+  S.weather=w; S.weatherUntil=now+(45+Math.random()*45)*1000;
+  applyWeather();
+}
+function rollMutation(){
+  const boost=WEATHER[S.weather].boost, luck=luckMult();
+  for(const m of MUTATIONS){ let c=m.base*luck; if(boost===m.id)c*=4; if(Math.random()<c)return m.id; }
+  return null;
+}
+
+// ---------- Core actions ----------
+function buySeed(id){ const s=SEED_BY_ID[id];
+  if(S.coins<s.cost){ toast("Not enough coins"); return; }
+  S.coins-=s.cost; S.bag[id]=(S.bag[id]||0)+1; render(); save(); }
+function plant(i,seedId){
+  if((S.bag[seedId]||0)<=0){ toast("You don't own that seed"); return; }
+  if(S.garden[i]){ toast("Plot already used"); return; }
+  S.bag[seedId]--; S.garden[i]={seedId,planted:Date.now(),mutation:rollMutation()};
+  closeModal(); render(); save(); buildPlant(i);
+}
+function effGrowAt(cell){ const s=SEED_BY_ID[cell.seedId]; if(!cell.dur)cell.dur=effGrow(s); return cell.dur; }
+function isReady(cell){ if(!cell)return false; return (Date.now()-cell.planted)/1000>=effGrowAt(cell); }
+function harvest(i){
+  const cell=S.garden[i]; if(!cell||!isReady(cell))return;
+  const s=SEED_BY_ID[cell.seedId]; let value=s.value, mn="";
+  if(cell.mutation){ const m=MUTATIONS.find(x=>x.id===cell.mutation); value=Math.round(value*m.mult); mn=" "+m.emoji+" "+m.name; }
+  S.coins+=value; S.harvests++; S.garden[i]=null;
+  toast("Harvested "+s.emoji+" "+s.name+mn+" · +"+fmt(value)+" 🪙");
+  render(); save(); buildPlant(i);
+}
+function harvestAll(){
+  let total=0,count=0;
+  for(let i=0;i<S.plots;i++){ const cell=S.garden[i];
+    if(cell&&isReady(cell)){ const s=SEED_BY_ID[cell.seedId]; let v=s.value;
+      if(cell.mutation)v=Math.round(v*MUTATIONS.find(x=>x.id===cell.mutation).mult);
+      total+=v; count++; S.coins+=v; S.harvests++; S.garden[i]=null; buildPlant(i);
+    }
+  }
+  toast(count?("Harvested "+count+" · +"+fmt(total)+" 🪙"):"Nothing ready yet");
+  render(); save();
+}
+
+// ---------- Upgrades ----------
+function plotCost(){ return Math.round(150*Math.pow(2.1,S.plots-4)); }
+function fertCost(){ return Math.round(120*Math.pow(1.8,S.fert)); }
+function cloverCost(){ return Math.round(200*Math.pow(2.0,S.clover)); }
+function buyPlot(){ if(S.plots>=MAX_PLOTS){ toast("All plots unlocked!"); return; }
+  const c=plotCost(); if(S.coins<c){ toast("Not enough coins"); return; }
+  S.coins-=c; S.plots++; render(); save(); refreshPlotVisibility(); }
+function buyFert(){ const c=fertCost(); if(S.coins<c){ toast("Not enough coins"); return; } S.coins-=c; S.fert++; render(); save(); }
+function buyClover(){ const c=cloverCost(); if(S.coins<c){ toast("Not enough coins"); return; } S.coins-=c; S.clover++; render(); save(); }
+
+// ---------- HUD rendering ----------
+let activeTab="shop", pickPlot=null;
+function rarTag(r){ return '<span class="rar-tag" style="color:'+RARITY[r].color+'">'+RARITY[r].name+'</span>'; }
+function render(){
+  document.getElementById("coins").textContent=fmt(S.coins);
+  document.getElementById("harvests").textContent=fmt(S.harvests);
+  document.getElementById("luck").textContent=luckMult().toFixed(2)+"×";
+  const w=WEATHER[S.weather];
+  document.getElementById("weather").querySelector(".emo").textContent=w.emoji;
+  document.getElementById("weatherName").textContent=w.name+(w.note?" · "+w.note:"");
+  let ready=0,grow=0;
+  for(let i=0;i<S.plots;i++){ const c=S.garden[i]; if(c){ isReady(c)?ready++:grow++; } }
+  document.getElementById("plotInfo").textContent=ready+" ready · "+grow+" growing · "+S.plots+"/"+MAX_PLOTS+" plots";
+  renderPanel();
+}
+function renderPanel(){
+  const p=document.getElementById("panel");
+  if(activeTab==="shop"){
+    p.innerHTML='<div class="list">'+SEEDS.map(s=>{
+      const can=S.coins>=s.cost;
+      return '<div class="item"><div class="ic">'+s.emoji+'</div><div class="meta"><div class="nm">'+s.name+' '+rarTag(s.rarity)+'</div><div class="sub">grows '+s.grow+'s · sells '+fmt(s.value)+' 🪙</div></div><button class="btn" '+(can?'':'disabled')+' data-buy="'+s.id+'">'+fmt(s.cost)+' 🪙</button></div>';
+    }).join("")+'</div>';
+    p.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buySeed(b.dataset.buy));
+  } else if(activeTab==="bag"){
+    const owned=SEEDS.filter(s=>(S.bag[s.id]||0)>0);
+    p.innerHTML=owned.length? '<div class="list">'+owned.map(s=>'<div class="item"><div class="ic">'+s.emoji+'</div><div class="meta"><div class="nm">'+s.name+' '+rarTag(s.rarity)+'</div><div class="sub">grows '+s.grow+'s · sells '+fmt(s.value)+' 🪙</div></div><span class="qty">×'+S.bag[s.id]+'</span></div>').join("")+'</div><p class="hint" style="margin-top:8px">Click an empty plot to plant.</p>'
+      : '<p class="hint">Your bag is empty. Buy seeds from the 🛒 Shop, then click an empty plot.</p>';
+  } else {
+    const max=S.plots>=MAX_PLOTS;
+    p.innerHTML='<div class="list">'+
+      upgRow("🌾","Unlock Plot","Add a plot ("+S.plots+"/"+MAX_PLOTS+")",max?"MAXED":fmt(plotCost())+" 🪙",max,"plot")+
+      upgRow("🧪","Fertilizer Lv "+S.fert,"Grow "+Math.round(Math.min(60,S.fert*8))+"% faster → +8%",fmt(fertCost())+" 🪙",false,"fert")+
+      upgRow("🍀","Lucky Clover Lv "+S.clover,"Luck "+luckMult().toFixed(2)+"× → more mutations",fmt(cloverCost())+" 🪙",false,"clover")+
+    '</div><p class="hint" style="margin-top:8px">Mutations ×: 💧1.6 · ❄️2.5 · ✨6 · 🌈25.</p>';
+    p.querySelector('[data-upg="plot"]').onclick=buyPlot;
+    p.querySelector('[data-upg="fert"]').onclick=buyFert;
+    p.querySelector('[data-upg="clover"]').onclick=buyClover;
+  }
+}
+function upgRow(ic,name,sub,btn,dis,key){
+  return '<div class="item"><div class="ic">'+ic+'</div><div class="meta"><div class="nm">'+name+'</div><div class="sub">'+sub+'</div></div><button class="btn gold" '+(dis?'disabled':'')+' data-upg="'+key+'">'+btn+'</button></div>';
+}
+function openPicker(i){
+  pickPlot=i;
+  const owned=SEEDS.filter(s=>(S.bag[s.id]||0)>0);
+  const list=document.getElementById("pickList");
+  list.innerHTML=owned.length? owned.map(s=>'<button class="pick" data-plant="'+s.id+'"><span class="ic">'+s.emoji+'</span><span><span style="font-weight:800;font-size:13px">'+s.name+'</span><br><span class="sub" style="font-size:11px;color:var(--muted)">×'+S.bag[s.id]+' · '+s.grow+'s</span></span></button>').join("")
+    : '<p class="hint" style="grid-column:1/-1">No seeds yet — buy from the 🛒 Shop first.</p>';
+  list.querySelectorAll("[data-plant]").forEach(b=>b.onclick=()=>plant(pickPlot,b.dataset.plant));
+  document.getElementById("overlay").classList.add("show");
+}
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); pickPlot=null; }
+
+// ---------- 3D scene ----------
+let renderer,scene,camera,raycaster,pointer,dirLight,ambient;
+const plotMeshes=[], plantGroups=[];
+let cols=4, rows=3, spacing=2.2;
+let camAz=0.7, camEl=0.9, camDist=13;
+
+function emojiTexture(emoji){
+  const c=document.createElement("canvas"); c.width=c.height=128;
+  const g=c.getContext("2d"); g.clearRect(0,0,128,128);
+  g.font="96px serif"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(emoji,64,72);
+  const t=new THREE.Texture(c); t.needsUpdate=true; return t;
+}
+
+function initScene(){
+  const canvas=document.getElementById("scene");
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x8fd0ff);
+  scene.fog=new THREE.Fog(0x8fd0ff,22,42);
+  camera=new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,0.1,200);
+  ambient=new THREE.AmbientLight(0xffffff,0.65); scene.add(ambient);
+  dirLight=new THREE.DirectionalLight(0xfff2cc,1.05); dirLight.position.set(6,12,5); scene.add(dirLight);
+  // ground grass
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(30,48),new THREE.MeshLambertMaterial({color:0x3f7d43}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=-0.01; scene.add(ground);
+  // soil bed
+  const bedW=cols*spacing+1.2, bedH=rows*spacing+1.2;
+  const bed=new THREE.Mesh(new THREE.BoxGeometry(bedW,0.4,bedH),new THREE.MeshLambertMaterial({color:0x5a3d24}));
+  bed.position.y=0.0; scene.add(bed);
+  // plots
+  raycaster=new THREE.Raycaster(); pointer=new THREE.Vector2();
+  for(let i=0;i<MAX_PLOTS;i++){
+    const cx=(i%cols-(cols-1)/2)*spacing;
+    const cz=(Math.floor(i/cols)-(rows-1)/2)*spacing;
+    const soil=new THREE.Mesh(new THREE.BoxGeometry(spacing*0.82,0.3,spacing*0.82),
+      new THREE.MeshLambertMaterial({color:0x6b4a2c}));
+    soil.position.set(cx,0.28,cz); soil.userData.plot=i; scene.add(soil);
+    plotMeshes.push(soil);
+    const g=new THREE.Group(); g.position.set(cx,0.45,cz); scene.add(g); plantGroups.push(g);
+  }
+  window.addEventListener("resize",onResize);
+  // camera drag
+  let dragging=false,lx=0,ly=0;
+  canvas.addEventListener("pointerdown",e=>{ dragging=true; lx=e.clientX; ly=e.clientY; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener("pointerup",e=>{ dragging=false; });
+  canvas.addEventListener("pointermove",e=>{
+    if(!dragging)return;
+    camAz-=(e.clientX-lx)*0.008; camEl=Math.max(0.25,Math.min(1.45,camEl-(e.clientY-ly)*0.006));
+    lx=e.clientX; ly=e.clientY;
+  });
+  canvas.addEventListener("wheel",e=>{ e.preventDefault(); camDist=Math.max(7,Math.min(24,camDist+e.deltaY*0.01)); },{passive:false});
+  // click to plant/harvest (ignore drags)
+  let downX=0,downY=0;
+  canvas.addEventListener("pointerdown",e=>{ downX=e.clientX; downY=e.clientY; });
+  canvas.addEventListener("click",e=>{
+    if(Math.abs(e.clientX-downX)>5||Math.abs(e.clientY-downY)>5)return;
+    onPick(e);
+  });
+  animate();
+}
+function onResize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); }
+function applyWeather(){
+  const w=WEATHER[S?S.weather:"sunny"];
+  if(!scene)return;
+  scene.background.setHex(w.sky); scene.fog.color.setHex(w.sky);
+  dirLight.color.setHex(w.light); dirLight.intensity=w.li;
+}
+function refreshPlotVisibility(){
+  for(let i=0;i<MAX_PLOTS;i++){
+    const locked=i>=S.plots;
+    plotMeshes[i].material.color.setHex(locked?0x2f3a2f:0x6b4a2c);
+    plotMeshes[i].material.opacity=locked?0.5:1; plotMeshes[i].material.transparent=locked;
+    plotMeshes[i].visible=true;
+    if(locked){ clearGroup(plantGroups[i]); }
+  }
+}
+function clearGroup(g){ while(g.children.length){ const c=g.children.pop(); if(c.material)c.material.dispose && c.material.dispose(); g.remove(c); } }
+
+function buildPlant(i){
+  const g=plantGroups[i]; clearGroup(g);
+  const cell=S.garden[i]; if(!cell||i>=S.plots)return;
+  const s=SEED_BY_ID[cell.seedId];
+  // stem
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.09,0.6,6),new THREE.MeshLambertMaterial({color:0x3aa14a}));
+  stem.position.y=0.3; stem.name="stem"; g.add(stem);
+  // leaves
+  const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.28,10,8),new THREE.MeshLambertMaterial({color:0x4fbf5f}));
+  leaf.position.y=0.6; leaf.name="leaf"; g.add(leaf);
+  // fruit sprite (shown when ripe)
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTexture(s.emoji),transparent:true}));
+  spr.scale.set(0.9,0.9,0.9); spr.position.y=1.15; spr.name="fruit"; spr.visible=false; g.add(spr);
+  // rarity ring
+  const ring=new THREE.Mesh(new THREE.RingGeometry(0.45,0.6,24),new THREE.MeshBasicMaterial({color:RARITY[s.rarity].hex,side:THREE.DoubleSide,transparent:true,opacity:0.85}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=0.16; ring.name="ring"; g.add(ring);
+  // mutation glow marker
+  if(cell.mutation){
+    const m=MUTATIONS.find(x=>x.id===cell.mutation);
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(0.12,10,8),new THREE.MeshBasicMaterial({color:m.glow}));
+    orb.position.set(0.4,1.1,0); orb.name="mut"; g.add(orb);
+  }
+}
+function rebuildAllPlants(){ for(let i=0;i<MAX_PLOTS;i++) buildPlant(i); }
+
+function onPick(e){
+  if(!S)return;
+  pointer.x=(e.clientX/window.innerWidth)*2-1;
+  pointer.y=-(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(plotMeshes,false);
+  if(!hits.length)return;
+  const i=hits[0].object.userData.plot;
+  if(i>=S.plots){ toast("Plot locked — unlock it in ⚙️ Upgrades"); return; }
+  const cell=S.garden[i];
+  if(!cell){ openPicker(i); }
+  else if(isReady(cell)){ harvest(i); }
+  else { const dur=effGrowAt(cell); toast(SEED_BY_ID[cell.seedId].name+" · "+Math.ceil(dur-(Date.now()-cell.planted)/1000)+"s left"); }
+}
+
+let tPrev=performance.now();
+function animate(){
+  requestAnimationFrame(animate);
+  const now=performance.now(), dt=(now-tPrev)/1000; tPrev=now;
+  // camera orbit position
+  const cx=Math.cos(camAz)*Math.cos(camEl)*camDist;
+  const cy=Math.sin(camEl)*camDist;
+  const cz=Math.sin(camAz)*Math.cos(camEl)*camDist;
+  camera.position.set(cx,cy,cz); camera.lookAt(0,0.5,0);
+  // update plants growth
+  if(S){
+    for(let i=0;i<MAX_PLOTS;i++){
+      const g=plantGroups[i], cell=S.garden[i];
+      if(!cell||i>=S.plots){ continue; }
+      if(g.children.length===0) buildPlant(i);
+      const dur=effGrowAt(cell);
+      const p=Math.min(1,(Date.now()-cell.planted)/1000/dur);
+      const ready=p>=1;
+      const stem=g.getObjectByName("stem"), leaf=g.getObjectByName("leaf"),
+            fruit=g.getObjectByName("fruit"), ring=g.getObjectByName("ring"), mut=g.getObjectByName("mut");
+      const sc=0.35+p*0.85;
+      if(stem){ stem.scale.y=sc; stem.position.y=0.3*sc; }
+      if(leaf){ leaf.scale.setScalar(0.5+p*0.9); leaf.position.y=0.6*sc+0.05; leaf.material.color.setHex(ready?0x6ad06a:0x4fbf5f); }
+      if(fruit){ fruit.visible=ready; fruit.position.y=1.05*sc+0.25+Math.sin(now*0.004+i)*(ready?0.06:0); }
+      if(ring){ ring.material.opacity=ready?0.95:0.35; ring.rotation.z+=dt*(ready?1.4:0.2); }
+      if(mut){ mut.position.y=1.05*sc+0.2+Math.sin(now*0.006+i)*0.08; mut.rotation.y+=dt*2; }
+    }
+  }
+  renderer.render(scene,camera);
+}
+
+// ---------- Sign in ----------
+function startGame(){
+  refreshPlotVisibility(); rebuildAllPlants(); applyWeather(); render();
+}
+function signIn(name){
+  name=(name||"").trim().slice(0,20)||"Guest";
+  const fresh=!localStorage.getItem("sproutValley3d_"+name);
+  CURRENT_USER=name; localStorage.setItem("sproutValley_user",name);
+  S=load()||START();
+  document.getElementById("signinOverlay").classList.remove("show");
+  const chip=document.getElementById("userChip"); chip.style.display="flex";
+  document.getElementById("userName").textContent=name;
+  rollWeather(); startGame(); save();
+  toast((fresh?"Welcome":"Welcome back")+", "+name+"! 🌻");
+}
+function signOut(){
+  save(); CURRENT_USER=null; S=null; localStorage.removeItem("sproutValley_user");
+  for(let i=0;i<MAX_PLOTS;i++) clearGroup(plantGroups[i]);
+  document.getElementById("userChip").style.display="none";
+  document.getElementById("signinName").value="";
+  document.getElementById("signinOverlay").classList.add("show");
+}
+
+// ---------- Wiring ----------
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); activeTab=t.dataset.tab; renderPanel(); };
+});
+document.getElementById("harvestAll").onclick=harvestAll;
+document.getElementById("closeModal").onclick=closeModal;
+document.getElementById("overlay").onclick=e=>{ if(e.target.id==="overlay")closeModal(); };
+document.getElementById("resetBtn").onclick=()=>{ if(confirm("Reset your garden and start over?")){ S=START(); save(); startGame(); toast("New garden planted 🌱"); } };
+document.getElementById("signinBtn").onclick=()=>signIn(document.getElementById("signinName").value);
+document.getElementById("guestBtn").onclick=()=>signIn("Guest");
+document.getElementById("signOutBtn").onclick=signOut;
+document.getElementById("signinName").addEventListener("keydown",e=>{ if(e.key==="Enter")signIn(e.target.value); });
+
+setInterval(()=>{ if(S){ rollWeather(); render(); } },1000);
+setInterval(save,5000);
+window.addEventListener("beforeunload",save);
+
+// ---------- Boot ----------
+initScene();
+if(CURRENT_USER){ signIn(CURRENT_USER); }
+else { document.getElementById("signinOverlay").classList.add("show"); setTimeout(()=>document.getElementById("signinName").focus(),50); }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sprout Valley — Grow a Garden</title>
 <style>
   :root {
